@@ -6,7 +6,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::process;
 
-use cg_bundler::{Bundler, BundlerError, CargoProject, TransformConfig};
+use cg_bundler::{bulk_refactoring, Bundler, BundlerError, CargoProject, TransformConfig};
 
 /// Display bug report information to the user
 fn display_bug_report_info() {
@@ -77,6 +77,10 @@ pub struct Cli {
     /// Aggressive minify with whitespace replacements (implies -m)
     #[arg(long, help = "Aggressive minify")]
     pub m2: bool,
+
+    /// Aggressive minification with refractoring of symbols
+    #[arg(long, help = "Minification agressive et symboles")]
+    pub m3: bool,
 
     /// Verbose output
     #[arg(short, long, help = "Verbose output")]
@@ -153,6 +157,12 @@ impl Cli {
     pub const fn is_aggressive_minify(&self) -> bool {
         self.m2
     }
+
+    /// Check if aggressive minification with refractoring of symbols is requested
+    #[must_use]
+    pub const fn is_aggressive_bulk_refactoring(&self) -> bool {
+        self.m3
+    }
 }
 
 fn main() {
@@ -184,6 +194,7 @@ fn handle_bundle_command(cli: &Cli) -> Result<(), BundlerError> {
     let pretty = cli.is_pretty();
     let minify = cli.is_minify();
     let aggressive_minify = cli.is_aggressive_minify();
+    let aggressive_bulk_refactoring = cli.is_aggressive_bulk_refactoring();
     let output_file = cli.get_output();
 
     if verbose {
@@ -217,6 +228,12 @@ fn handle_bundle_command(cli: &Cli) -> Result<(), BundlerError> {
             eprintln!("{}", "Minifying output to single line...".yellow());
         }
         bundled_code = minify_code(&bundled_code);
+    } else if aggressive_bulk_refactoring {
+        if verbose {
+            eprintln!("{}", "Applying aggressive minification...".yellow());
+        }
+        bundled_code = bulk_refactoring(&bundled_code);
+        bundled_code = aggressive_minify_code(&bundled_code);
     }
     // Format with rustfmt if requested and available (only if not minifying)
     else if pretty {

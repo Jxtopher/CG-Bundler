@@ -3,6 +3,7 @@
 //! This library provides functionality to bundle Rust projects into single source files,
 //! combining multiple modules and dependencies into a single, self-contained file.
 
+pub mod bulk_refactoring;
 pub mod bundler;
 pub mod cargo_project;
 pub mod error;
@@ -10,6 +11,7 @@ pub mod file_manager;
 pub mod transformer;
 
 // Re-export main types for convenience
+pub use bulk_refactoring::bulk_refactoring;
 pub use bundler::Bundler;
 pub use cargo_project::CargoProject;
 pub use error::{BundlerError, Result};

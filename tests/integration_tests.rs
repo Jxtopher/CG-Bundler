@@ -1,5 +1,6 @@
 use cg_bundler::bundle;
 use cg_bundler::{Bundler, CargoProject, TransformConfig}; // Added imports for new tests
+use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 use tempfile::TempDir;
@@ -248,10 +249,9 @@ fn test_bundled_code_syntax_validity() {
     match parsed {
         Ok(_) => {
             // Code is syntactically valid
-            assert!(true, "Bundled code should be syntactically valid");
         }
         Err(e) => {
-            panic!("Bundled code contains syntax errors: {}", e);
+            panic!("Bundled code contains syntax errors: {e}");
         }
     }
 }
@@ -271,7 +271,7 @@ fn test_bundled_code_compiles() {
     // Try to compile with rustc (just check syntax by trying to compile)
     let temp_output = temp_dir.path().join("compiled_output");
     let output = std::process::Command::new("rustc")
-        .args(&["--edition", "2021", "--crate-type", "lib"])
+        .args(["--edition", "2021", "--crate-type", "lib"])
         .arg(&bundled_file)
         .arg("-o")
         .arg(&temp_output)
@@ -289,21 +289,20 @@ fn test_bundled_code_compiles() {
 
                 let has_allowed_error = allowed_errors.iter().any(|&error| stderr.contains(error));
 
-                if !has_allowed_error {
-                    panic!(
-                        "Bundled code failed to compile with unexpected errors:\n{}",
-                        stderr
-                    );
-                }
+                assert!(
+                    has_allowed_error,
+                    "Bundled code failed to compile with unexpected errors:\n{stderr}"
+                );
                 // If it's just import errors from missing modules, that's expected for a complex test project
-                eprintln!("Note: Bundle compilation failed with expected module errors (this is normal for complex projects)");
+                eprintln!(
+                    "Note: Bundle compilation failed with expected module errors (this is normal for complex projects)"
+                );
             }
             // If we get here, compilation succeeded or failed with expected errors
-            assert!(true, "Bundle compilation test completed");
         }
         Err(e) => {
             // rustc not available, skip this test
-            eprintln!("Warning: rustc not available for compilation test: {}", e);
+            eprintln!("Warning: rustc not available for compilation test: {e}");
         }
     }
 }
@@ -323,8 +322,7 @@ fn test_bundle_performance() {
     // Bundle should complete within 5 seconds for a small test project
     assert!(
         duration.as_secs() < 5,
-        "Bundle operation took too long: {:?}",
-        duration
+        "Bundle operation took too long: {duration:?}"
     );
 }
 
@@ -344,8 +342,7 @@ fn test_bundle_preserves_structure() {
     let game_struct_count = bundled_code.matches("struct Game").count();
     assert!(
         game_struct_count >= 1,
-        "Should have at least one Game struct definition, found {}",
-        game_struct_count
+        "Should have at least one Game struct definition, found {game_struct_count}"
     );
 
     // Should preserve module structure (even if flattened)
@@ -435,7 +432,7 @@ fn test_filtering_docs_and_tests() {
 // NEW COMPREHENSIVE TESTS SECTION
 // ==============================================
 
-/// Test Bundler with custom TransformConfig - keep tests
+/// Test Bundler with custom `TransformConfig` - keep tests
 #[test]
 fn test_bundler_with_keep_tests_config() {
     let config = TransformConfig {
@@ -458,7 +455,7 @@ fn test_bundler_with_keep_tests_config() {
     assert!(!bundled_code.is_empty(), "Bundle should not be empty");
 }
 
-/// Test Bundler with custom TransformConfig - keep docs
+/// Test Bundler with custom `TransformConfig` - keep docs
 #[test]
 fn test_bundler_with_keep_docs_config() {
     let config = TransformConfig {
@@ -505,7 +502,7 @@ fn test_bundler_disable_module_expansion() {
     assert!(!bundled_code.is_empty(), "Bundle should not be empty");
 }
 
-/// Test CargoProject creation and metadata
+/// Test `CargoProject` creation and metadata
 #[test]
 fn test_cargo_project_creation() {
     let test_project_path = Path::new("test_project");
@@ -596,7 +593,7 @@ path = "src/main.rs"
         .expect("Failed to create nested dirs");
 
     // Main file with module declarations
-    let main_rs = r#"
+    let main_rs = r"
 mod modules;
 use modules::helper::HelperStruct;
 
@@ -604,14 +601,14 @@ fn main() {
     let helper = HelperStruct::new();
     helper.do_something();
 }
-"#;
+";
     fs::write(project_path.join("src/main.rs"), main_rs).expect("Failed to write main.rs");
 
     // Module file
-    let modules_mod = r#"
+    let modules_mod = r"
 pub mod helper;
 pub mod submodule;
-"#;
+";
     fs::write(project_path.join("src/modules/mod.rs"), modules_mod)
         .expect("Failed to write modules/mod.rs");
 
@@ -1132,7 +1129,7 @@ fn main() {
     );
 }
 
-/// Test TransformConfig default values
+/// Test `TransformConfig` default values
 #[test]
 fn test_transform_config_defaults() {
     let config = TransformConfig::default();
@@ -1147,7 +1144,7 @@ fn test_transform_config_defaults() {
     );
 }
 
-/// Test TransformConfig custom values
+/// Test `TransformConfig` custom values
 #[test]
 fn test_transform_config_custom() {
     let config = TransformConfig {
@@ -1197,7 +1194,7 @@ fn test_bundler_config_updates() {
         aggressive_minify: false,
     };
 
-    bundler.set_config(new_config.clone());
+    bundler.set_config(new_config);
 
     // Verify config was updated
     assert!(!bundler.config().remove_tests, "Config should be updated");
@@ -1329,7 +1326,6 @@ fn test_bundling_memory_usage() {
         .expect("Bundle should succeed");
 
     // If we get here without OOM, the test passes
-    assert!(true, "Bundle completed without memory issues");
 }
 
 /// Test concurrent bundling (multiple bundlers)
@@ -1352,7 +1348,7 @@ fn test_concurrent_bundling() {
 
     for handle in handles {
         let (thread_id, result) = handle.join().expect("Thread should complete");
-        result.expect(&format!("Bundle should succeed in thread {}", thread_id));
+        result.unwrap_or_else(|_| panic!("Bundle should succeed in thread {thread_id}"));
     }
 }
 
@@ -1538,7 +1534,7 @@ fn test_error_display_formatting() {
         source: io::Error::new(io::ErrorKind::NotFound, "File not found"),
         path: Some(std::path::PathBuf::from("/test/path")),
     };
-    let error_string = format!("{}", io_error);
+    let error_string = format!("{io_error}");
     assert!(
         error_string.contains("IO error"),
         "Should contain IO error message"
@@ -1553,7 +1549,7 @@ fn test_error_display_formatting() {
         message: "Invalid syntax".to_string(),
         file_path: Some(std::path::PathBuf::from("/test/file.rs")),
     };
-    let error_string = format!("{}", parsing_error);
+    let error_string = format!("{parsing_error}");
     assert!(
         error_string.contains("Parsing error"),
         "Should contain parsing error message"
@@ -1567,7 +1563,7 @@ fn test_error_display_formatting() {
     let structure_error = BundlerError::ProjectStructure {
         message: "Invalid project structure".to_string(),
     };
-    let error_string = format!("{}", structure_error);
+    let error_string = format!("{structure_error}");
     assert!(
         error_string.contains("Project structure error"),
         "Should contain structure error message"
@@ -1597,11 +1593,11 @@ path = "src/main.rs"
     // Generate main.rs with many module declarations
     let mut main_content = String::new();
     for i in 0..20 {
-        main_content.push_str(&format!("mod module{};\n", i));
+        writeln!(main_content, "mod module{i};").expect("write failed");
     }
     main_content.push_str("\nfn main() {\n");
     for i in 0..20 {
-        main_content.push_str(&format!("    module{}::function{}();\n", i, i));
+        writeln!(main_content, "    module{i}::function{i}();").expect("write failed");
     }
     main_content.push_str("}\n");
 
@@ -1611,36 +1607,35 @@ path = "src/main.rs"
     for i in 0..20 {
         let module_content = format!(
             r#"
-pub fn function{}() {{
-    println!("Function {} called");
+pub fn function{i}() {{
+    println!("Function {i} called");
     // Add some complexity
     let mut vec = Vec::new();
     for j in 0..100 {{
-        vec.push(j * {});
+        vec.push(j * {i});
     }}
     let sum: i32 = vec.iter().sum();
     println!("Sum: {{}}", sum);
 }}
 
-pub struct Struct{} {{
+pub struct Struct{i} {{
     pub field: i32,
 }}
 
-impl Struct{} {{
+impl Struct{i} {{
     pub fn new() -> Self {{
-        Self {{ field: {} }}
+        Self {{ field: {i} }}
     }}
     
     pub fn get_field(&self) -> i32 {{
         self.field
     }}
 }}
-"#,
-            i, i, i, i, i, i
+"#
         );
 
         fs::write(
-            project_path.join(&format!("src/module{}.rs", i)),
+            project_path.join(format!("src/module{i}.rs")),
             module_content,
         )
         .expect("Failed to write module file");
@@ -1651,7 +1646,7 @@ impl Struct{} {{
     let bundled_code = bundle(project_path).expect("Should bundle stress test project");
     let duration = start.elapsed();
 
-    println!("Bundling took: {:?}", duration);
+    println!("Bundling took: {duration:?}");
 
     assert!(!bundled_code.is_empty(), "Bundle should not be empty");
     assert!(bundled_code.len() > 10000, "Bundle should be substantial");
@@ -1659,14 +1654,12 @@ impl Struct{} {{
     // Verify it contains expected content
     for i in 0..20 {
         assert!(
-            bundled_code.contains(&format!("function{}", i)),
-            "Should contain function{}",
-            i
+            bundled_code.contains(&format!("function{i}")),
+            "Should contain function{i}"
         );
         assert!(
-            bundled_code.contains(&format!("Struct{}", i)),
-            "Should contain Struct{}",
-            i
+            bundled_code.contains(&format!("Struct{i}")),
+            "Should contain Struct{i}"
         );
     }
 
@@ -1736,23 +1729,20 @@ fn calculate_something() -> i32 {
 
     // Verify all results
     for (thread_id, result) in results {
-        assert!(result.is_ok(), "Thread {} should succeed", thread_id);
+        assert!(result.is_ok(), "Thread {thread_id} should succeed");
 
         if let Ok(bundled_code) = result {
             assert!(
                 !bundled_code.is_empty(),
-                "Thread {} should produce non-empty bundle",
-                thread_id
+                "Thread {thread_id} should produce non-empty bundle"
             );
             assert!(
                 bundled_code.contains("fn main"),
-                "Thread {} should contain main function",
-                thread_id
+                "Thread {thread_id} should contain main function"
             );
             assert!(
                 bundled_code.contains("calculate_something"),
-                "Thread {} should contain helper function",
-                thread_id
+                "Thread {thread_id} should contain helper function"
             );
         }
     }
@@ -1795,7 +1785,7 @@ fn main() {{
 {}
 "#,
             (0..100)
-                .map(|i| format!("fn function_{}() {{ println!(\"Function {}\"); }}", i, i))
+                .map(|i| format!("fn function_{i}() {{ println!(\"Function {i}\"); }}"))
                 .collect::<Vec<_>>()
                 .join("\n")
         );
@@ -1803,11 +1793,10 @@ fn main() {{
         fs::write(project_path.join("src/main.rs"), main_rs).expect("Failed to write main.rs");
 
         let bundler = Bundler::new();
-        let _result = bundler.bundle(project_path).expect("Bundle should succeed");
+        let result = bundler.bundle(project_path).expect("Bundle should succeed");
 
         // Force cleanup
-        drop(_result);
-        drop(bundler);
+        drop(result);
         drop(temp_dir);
     }
 
@@ -1818,8 +1807,7 @@ fn main() {{
     // Allow some memory growth but not excessive (adjust threshold as needed)
     assert!(
         memory_growth < 100_000_000,
-        "Memory usage grew by {} bytes, which seems excessive",
-        memory_growth
+        "Memory usage grew by {memory_growth} bytes, which seems excessive"
     );
 }
 
@@ -1879,7 +1867,7 @@ fn test_bundling_with_long_paths() {
     // Create a deep directory structure
     let mut deep_path = base_path.to_path_buf();
     for i in 0..10 {
-        deep_path = deep_path.join(format!("very_long_directory_name_{}", i));
+        deep_path = deep_path.join(format!("very_long_directory_name_{i}"));
         fs::create_dir_all(&deep_path).expect("Failed to create deep directories");
     }
 
@@ -1964,15 +1952,17 @@ edition = "2021"
     // Generate a large file with many functions
     let mut large_content = String::from("fn main() {\n");
     for i in 0..1000 {
-        large_content.push_str(&format!("    function_{}();\n", i));
+        writeln!(large_content, "    function_{i}();").expect("write failed");
     }
     large_content.push_str("}\n\n");
 
     for i in 0..1000 {
-        large_content.push_str(&format!(
-            "fn function_{}() {{\n    println!(\"Function {}\");\n}}\n\n",
-            i, i
-        ));
+        writeln!(
+            large_content,
+            "fn function_{i}() {{\n    println!(\"Function {i}\");\n}}"
+        )
+        .expect("write failed");
+        large_content.push('\n');
     }
 
     fs::write(project_path.join("src/main.rs"), large_content)
@@ -2001,6 +1991,7 @@ edition = "2021"
 
 /// Test bundling with custom error types and Result chains
 #[test]
+#[allow(clippy::too_many_lines)]
 fn test_bundling_with_custom_errors() {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let project_path = temp_dir.path();
@@ -2145,7 +2136,7 @@ fn main() -> AppResult<()> {
         "Should preserve type aliases"
     );
     assert!(
-        bundled_code.contains("?"),
+        bundled_code.contains('?'),
         "Should preserve error propagation operator"
     );
 }
@@ -2161,7 +2152,7 @@ fn test_cli_help_integration() {
 
     // Test that the CLI help includes all expected elements
     let output = Command::new("cargo")
-        .args(&["run", "--bin", "cg-bundler", "--", "--help"])
+        .args(["run", "--bin", "cg-bundler", "--", "--help"])
         .current_dir(".")
         .output()
         .expect("Failed to execute command");
@@ -2200,7 +2191,7 @@ fn test_cli_error_display_integration() {
 
     // Test error handling with invalid project path
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "--bin",
             "cg-bundler",
@@ -2215,21 +2206,23 @@ fn test_cli_error_display_integration() {
 
     let stderr = String::from_utf8_lossy(&output.stderr);
 
-    // Verify enhanced error display
+    // Verify enhanced error display. A bad path is the caller's mistake, so the
+    // error names it and still offers the issue tracker -- but it is not dressed
+    // up as a bug report. The "found a bug?" banner is reserved for unexpected
+    // failures and is covered by the `diagnostics` unit tests.
     assert!(stderr.contains("Error:"), "Should contain error prefix");
     assert!(
-        stderr.contains("💡 Need help or found a bug?"),
-        "Should contain help prompt"
+        stderr.contains("does not exist"),
+        "Should say the path does not exist, got: {stderr}"
     );
     assert!(
         stderr.contains("https://github.com/MathieuSoysal/CG-Bundler/issues/new"),
         "Should contain GitHub issues URL"
     );
     assert!(
-        stderr.contains("Your feedback helps improve CG-Bundler"),
-        "Should contain encouraging message"
+        !stderr.contains("💡 Need help or found a bug?"),
+        "A bad path must not be reported as a bundler bug, got: {stderr}"
     );
-    assert!(stderr.contains("━"), "Should contain visual separators");
 }
 
 /// Test that info command includes enhanced footer
@@ -2239,7 +2232,7 @@ fn test_cli_info_command_integration() {
 
     // Test info command with current project
     let output = Command::new("cargo")
-        .args(&["run", "--bin", "cg-bundler", "--", "--info"])
+        .args(["run", "--bin", "cg-bundler", "--", "--info"])
         .current_dir(".")
         .output()
         .expect("Failed to execute command");
@@ -2270,7 +2263,7 @@ fn test_cli_validate_verbose_integration() {
 
     // Test validate command with current project in verbose mode
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "--bin",
             "cg-bundler",
@@ -2306,7 +2299,7 @@ fn test_github_url_consistency_across_commands() {
 
     // Test help command
     let help_output = Command::new("cargo")
-        .args(&["run", "--bin", "cg-bundler", "--", "--help"])
+        .args(["run", "--bin", "cg-bundler", "--", "--help"])
         .current_dir(".")
         .output()
         .expect("Failed to execute help command");
@@ -2319,7 +2312,7 @@ fn test_github_url_consistency_across_commands() {
 
     // Test error output
     let error_output = Command::new("cargo")
-        .args(&["run", "--bin", "cg-bundler", "--", "/invalid/path"])
+        .args(["run", "--bin", "cg-bundler", "--", "/invalid/path"])
         .current_dir(".")
         .output()
         .expect("Failed to execute error command");
@@ -2332,7 +2325,7 @@ fn test_github_url_consistency_across_commands() {
 
     // Test info command
     let info_output = Command::new("cargo")
-        .args(&["run", "--bin", "cg-bundler", "--", "--info"])
+        .args(["run", "--bin", "cg-bundler", "--", "--info"])
         .current_dir(".")
         .output()
         .expect("Failed to execute info command");
@@ -2425,13 +2418,13 @@ pub fn solve() {
     // Create main.rs with MODERN Rust syntax (no extern crate!)
     fs::write(
         src_dir.join("main.rs"),
-        r#"
+        r"
 use competitive_example::*;
 
 fn main() {
     solve();
 }
-"#,
+",
     )
     .expect("Failed to write main.rs");
 
@@ -2470,4 +2463,279 @@ fn main() {
     // Verify the bundled code can be parsed as valid Rust
     let parsed = syn::parse_file(&result);
     assert!(parsed.is_ok(), "Bundled code should be valid Rust syntax");
+}
+
+// ==============================================
+// WINTER-CHALLENGE-2026 INTEGRATION TESTS
+// These tests exercise the hyphenated-package-name fix: a project whose
+// Cargo.toml has `name = "Winter-Challenge-2026"` uses `winter_challenge_2026`
+// as the lib name (underscores), and the bundler must match it correctly.
+// ==============================================
+
+/// Bundling the Winter-Challenge-2026 project succeeds end-to-end.
+#[test]
+fn test_bundle_winter_challenge_2026_succeeds() {
+    let project_path = Path::new("Winter-Challenge-2026");
+    if !project_path.exists() {
+        return; // skip when running outside the workspace root
+    }
+
+    let result = bundle(project_path).expect("bundling Winter-Challenge-2026 should succeed");
+
+    assert!(!result.is_empty(), "bundled output should not be empty");
+    assert!(
+        result.contains("fn main"),
+        "bundled output should contain fn main"
+    );
+    // The crate-name use statement should have been removed
+    assert!(
+        !result.contains("use winter_challenge_2026"),
+        "crate use statement should be removed after expansion"
+    );
+    // Output should be syntactically valid Rust
+    syn::parse_file(&result).expect("bundled Winter-Challenge-2026 should be valid Rust");
+}
+
+/// After bundling, the lib.rs contents (including `pub mod game`) are inlined.
+#[test]
+fn test_bundle_winter_challenge_2026_lib_is_inlined() {
+    let project_path = Path::new("Winter-Challenge-2026");
+    if !project_path.exists() {
+        return;
+    }
+
+    let result = bundle(project_path).expect("bundle should succeed");
+
+    // lib.rs exposes choose_actions_output, parse_setup, parse_turn via pub use;
+    // after inlining those function definitions must be present.
+    assert!(
+        result.contains("choose_actions_output"),
+        "choose_actions_output from lib should be present"
+    );
+    assert!(
+        result.contains("parse_setup"),
+        "parse_setup function should be inlined"
+    );
+    assert!(
+        result.contains("parse_turn"),
+        "parse_turn function should be inlined"
+    );
+}
+
+/// After bundling, nested modules (game/model, game/strategy, …) are expanded.
+#[test]
+fn test_bundle_winter_challenge_2026_nested_modules_expanded() {
+    let project_path = Path::new("Winter-Challenge-2026");
+    if !project_path.exists() {
+        return;
+    }
+
+    let result = bundle(project_path).expect("bundle should succeed");
+
+    // Types defined in game/model.rs
+    assert!(
+        result.contains("struct Point"),
+        "Point struct from model should be expanded"
+    );
+    assert!(
+        result.contains("struct Setup"),
+        "Setup struct from model should be expanded"
+    );
+    assert!(
+        result.contains("struct Snakebot"),
+        "Snakebot struct from model should be expanded"
+    );
+    // strategy.rs defines choose_actions_output
+    assert!(
+        result.contains("choose_actions_output"),
+        "strategy function should be expanded"
+    );
+}
+
+/// With module expansion disabled the bundler does not inline lib.rs, so the
+/// output is essentially just main.rs (with crate-path prefixes stripped).
+#[test]
+fn test_bundle_winter_challenge_2026_no_expand_modules() {
+    let project_path = Path::new("Winter-Challenge-2026");
+    if !project_path.exists() {
+        return;
+    }
+
+    let bundler = Bundler::with_config(TransformConfig {
+        expand_modules: false,
+        ..TransformConfig::default()
+    });
+    let result = bundler
+        .bundle(project_path)
+        .expect("bundle with no expansion should succeed");
+
+    assert!(!result.is_empty(), "result should not be empty");
+    assert!(
+        result.contains("fn main"),
+        "main function should be present"
+    );
+    // With expansion disabled, lib.rs is never loaded, so game-layer types
+    // must NOT appear in the output.
+    assert!(
+        !result.contains("struct Snakebot"),
+        "lib struct Snakebot should not be present when expansion is disabled"
+    );
+    assert!(
+        !result.contains("struct Point"),
+        "lib struct Point should not be present when expansion is disabled"
+    );
+}
+
+/// `CargoProject` normalises the hyphenated lib name to a valid Rust identifier.
+#[test]
+fn test_cargo_project_hyphenated_name_normalised() {
+    let project_path = Path::new("Winter-Challenge-2026");
+    if !project_path.exists() {
+        return;
+    }
+
+    let project = CargoProject::new(project_path)
+        .expect("CargoProject::new should succeed for Winter-Challenge-2026");
+
+    // The lib target keeps underscores (Cargo normalises dashes → underscores for lib names).
+    assert_eq!(
+        project.crate_name(),
+        "winter_challenge_2026",
+        "crate_name() must use underscores so it matches Rust import paths"
+    );
+    // The binary target name follows the package name (with dashes).
+    assert_eq!(
+        project.binary_target().name,
+        "winter-challenge-2026",
+        "binary target name should match Cargo.toml"
+    );
+}
+
+/// A binary-only project whose package name contains dashes has its crate
+/// identifier normalised to underscores.
+#[test]
+fn test_cargo_project_binary_only_hyphenated_name_normalised() {
+    let temp_dir = TempDir::new().expect("failed to create temp dir");
+    let project_path = temp_dir.path().join("hyphen-proj");
+    std::fs::create_dir_all(project_path.join("src")).unwrap();
+
+    std::fs::write(
+        project_path.join("Cargo.toml"),
+        r#"[package]
+name = "hyphen-proj"
+version = "0.1.0"
+edition = "2021"
+"#,
+    )
+    .unwrap();
+    std::fs::write(project_path.join("src/main.rs"), "fn main() {}\n").unwrap();
+
+    let project = CargoProject::new(&project_path)
+        .expect("CargoProject::new should succeed for a hyphenated binary-only project");
+
+    assert_eq!(
+        project.crate_name(),
+        "hyphen_proj",
+        "crate_name() should replace dashes with underscores"
+    );
+    assert_eq!(project.binary_target().name, "hyphen-proj");
+    assert!(project.library_target().is_none());
+}
+
+/// Regression test for: <https://github.com/MathieuSoysal/CG-Bundler/issues/49>
+///
+/// External crates (dependencies from crates.io) should be expanded and inlined
+/// into the bundled output, not left as bare `use` statements.
+///
+/// This test uses a path dependency to simulate an external crate without
+/// requiring network access. The bundler should expand the dependency's source
+/// into the output, wrapping it in the appropriate `mod` block.
+#[test]
+fn test_issue_49_external_crate_is_bundled() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+
+    // Create a simple external "crate" via a path dependency to simulate a crates.io dep.
+    let ext_crate_path = temp_dir.path().join("hello_world");
+    fs::create_dir_all(ext_crate_path.join("src")).expect("Failed to create ext crate src dir");
+
+    fs::write(
+        ext_crate_path.join("Cargo.toml"),
+        r#"[package]
+name = "hello-world"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "hello_world"
+path = "src/lib.rs"
+"#,
+    )
+    .expect("Failed to write external crate Cargo.toml");
+
+    fs::write(
+        ext_crate_path.join("src/lib.rs"),
+        r#"pub const HELLO_WORLD: &str = "Hello world!";"#,
+    )
+    .expect("Failed to write external crate lib.rs");
+
+    // Create the main project that uses the external crate.
+    let project_path = temp_dir.path().join("test_bundler");
+    fs::create_dir_all(project_path.join("src")).expect("Failed to create project src dir");
+
+    fs::write(
+        project_path.join("Cargo.toml"),
+        format!(
+            r#"[package]
+name = "test-bundler"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hello-world = {{ path = '{}' }}
+"#,
+            ext_crate_path.display()
+        ),
+    )
+    .expect("Failed to write project Cargo.toml");
+
+    fs::write(
+        project_path.join("src/main.rs"),
+        r#"use hello_world::HELLO_WORLD;
+
+fn main() {
+    println!("{HELLO_WORLD}");
+}
+"#,
+    )
+    .expect("Failed to write main.rs");
+
+    let bundler = Bundler::new();
+    let result = bundler.bundle(&project_path);
+
+    assert!(
+        result.is_ok(),
+        "Bundler should not fail on external crate dependencies: {:?}",
+        result.err()
+    );
+
+    let bundled_code = result.unwrap();
+
+    // The external crate's content should be inlined as a mod block.
+    assert!(
+        bundled_code.contains("mod hello_world"),
+        "Bundled output should contain an inlined `mod hello_world` block for the external crate.\n\
+         Got:\n{bundled_code}"
+    );
+    assert!(
+        bundled_code.contains("HELLO_WORLD"),
+        "Bundled output should contain the constant defined in the external crate.\n\
+         Got:\n{bundled_code}"
+    );
+    // The `use` statement is valid here: it now refers to the locally-defined mod, not an
+    // unresolved external crate, so the output is self-contained.
+    assert!(
+        bundled_code.contains("fn main"),
+        "Bundled output should still contain the main function.\n\
+         Got:\n{bundled_code}"
+    );
 }

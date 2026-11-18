@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
+[![Rust](https://img.shields.io/badge/rust-1.90%2B-orange.svg)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Crates.io](https://img.shields.io/crates/v/cg-bundler.svg)](https://crates.io/crates/cg-bundler)
 [![Documentation](https://docs.rs/cg-bundler/badge.svg)](https://docs.rs/cg-bundler)
@@ -23,14 +23,34 @@
 _With cargo :_
 ```bash
 cargo install cg-bundler
-cg-bundler > output.rs
+cg-bundler -o output.rs
 ```
 
-_Without cargo :_
+> Prefer `-o output.rs` over `> output.rs`. The shell truncates a redirect
+> target *before* the bundler runs, so a build that fails leaves you with an
+> empty file and your last working bundle gone. With `-o`, the file is written
+> only after bundling succeeds.
+
+_Without cargo_ — download the binary for your platform, make it executable, and run it:
 ```bash
 curl -L https://github.com/MathieuSoysal/cg-bundler/releases/latest/download/cg-bundler-linux-amd64 -o cg-bundler
-bash cg-bundler > output.rs
+chmod +x cg-bundler
+./cg-bundler -o output.rs
 ```
+
+Replace `cg-bundler-linux-amd64` with the build for your platform:
+
+| Platform | Asset |
+| --- | --- |
+| Linux x86-64 | `cg-bundler-linux-amd64` |
+| Linux ARM64 | `cg-bundler-linux-arm64` |
+| macOS Intel | `cg-bundler-macos-amd64` |
+| macOS Apple Silicon | `cg-bundler-macos-arm64` |
+| Windows x86-64 | `cg-bundler-windows-amd64.exe` |
+
+Run it from anywhere inside your Cargo project; parent directories are searched
+for `Cargo.toml`, just as `cargo` does. In a workspace, point it at the member
+you want to bundle (`cg-bundler puzzle1`).
 
 ## ✨ Features
 
@@ -88,9 +108,9 @@ cg-bundler --watch -o output.rs --verbose --debounce 200
 
 ## 📋 Requirements
 
-- **Rust 1.75.0** or later
+- **Rust 1.90.0** or later
 - **Cargo** (comes with Rust)
-- Compatible with **all Rust editions** (2015, 2018, 2021)
+- Compatible with **all Rust editions** (2015, 2018, 2021, 2024)
 
 ## 🎛️ CLI Options
 

@@ -52,11 +52,16 @@ impl Bundler {
             file_path: Some(binary_source_path.to_path_buf()),
         })?;
 
-        let mut transformer = CodeTransformer::new(
+        let mut transformer = CodeTransformer::with_external_libs(
             project.base_path(),
             project.crate_name(),
             self.config.clone(),
+            project.external_lib_paths(),
         );
+
+        if let Some(library_path) = project.library_source_path() {
+            transformer = transformer.with_library_path(library_path);
+        }
 
         transformer.transform_file(&mut file)?;
 
@@ -71,7 +76,7 @@ impl Bundler {
     }
 
     /// Update the configuration
-    pub fn set_config(&mut self, config: TransformConfig) {
+    pub const fn set_config(&mut self, config: TransformConfig) {
         self.config = config;
     }
 }

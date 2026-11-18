@@ -13,11 +13,10 @@ fn create_test_project(project_path: &Path, name: &str, content: &str) {
         format!(
             r#"
 [package]
-name = "{}"
+name = "{name}"
 version = "0.1.0"
 edition = "2021"
-"#,
-            name
+"#
         ),
     )
     .expect("Failed to write Cargo.toml");
@@ -266,9 +265,11 @@ fn main() {
 
     #[test]
     fn test_cli_with_invalid_project_path() {
+        let temp_dir = TempDir::new().expect("Failed to create temp directory");
+
         let mut cmd = cargo_bin_cmd!("cg-bundler");
 
-        cmd.current_dir("/tmp") // Non-Rust project directory
+        cmd.current_dir(temp_dir.path())
             .assert()
             .failure()
             .stderr(predicate::str::contains("Error:")); // Should show error message
@@ -419,21 +420,24 @@ fn main() {
             .stdout(predicate::str::contains("https://docs.rs/cg-bundler"));
     }
 
+    /// A path that is not a Cargo project is the user's mistake, not a defect in
+    /// the bundler. The error says so plainly and still offers the issue tracker,
+    /// but without the "found a bug?" framing. (That banner is still used for
+    /// unexpected failures; see the `diagnostics` unit tests.)
     #[test]
-    fn test_cli_error_contains_github_issues_link() {
+    fn test_cli_error_for_missing_project_is_actionable() {
         let mut cmd = cargo_bin_cmd!("cg-bundler");
 
         cmd.arg("/nonexistent/project/path")
             .assert()
             .failure()
-            .stderr(predicate::str::contains("💡 Need help or found a bug?"))
+            .stderr(predicate::str::contains("does not exist"))
+            // The link stays reachable, but a missing path is not a defect in
+            // the bundler, so it is not framed as one.
             .stderr(predicate::str::contains(
                 "https://github.com/MathieuSoysal/CG-Bundler/issues/new",
             ))
-            .stderr(predicate::str::contains(
-                "Your feedback helps improve CG-Bundler",
-            ))
-            .stderr(predicate::str::contains("━"));
+            .stderr(predicate::str::contains("💡 Need help or found a bug?").not());
     }
 
     #[test]
@@ -601,7 +605,8 @@ mod watch_mode_tests {
         let mut cmd = cargo_bin_cmd!("cg-bundler");
 
         // Use timeout to avoid hanging - watch mode will run indefinitely
-        cmd.current_dir(temp_dir.path())
+        let _ = cmd
+            .current_dir(temp_dir.path())
             .arg("--watch")
             .arg("-o")
             .arg("output.rs")
@@ -645,7 +650,8 @@ path = "custom_src/main.rs"
         let mut cmd = cargo_bin_cmd!("cg-bundler");
 
         // Test that watch mode accepts custom src dir
-        cmd.current_dir(&project_path)
+        let _ = cmd
+            .current_dir(&project_path)
             .arg("--watch")
             .arg("--src-dir")
             .arg("custom_src")
@@ -665,7 +671,8 @@ path = "custom_src/main.rs"
         let mut cmd = cargo_bin_cmd!("cg-bundler");
 
         // Test that watch mode accepts custom debounce
-        cmd.current_dir(temp_dir.path())
+        let _ = cmd
+            .current_dir(temp_dir.path())
             .arg("--watch")
             .arg("--debounce")
             .arg("1000")
